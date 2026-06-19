@@ -1,0 +1,18 @@
+{{- if and .Values.backend.persistence.enabled (not .Values.backend.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "chatdev.backend.fullname" . }}-warehouse
+  labels:
+    {{- include "chatdev.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  accessModes:
+    - {{ .Values.backend.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.backend.persistence.size | quote }}
+  {{- if .Values.backend.persistence.storageClass }}
+  storageClassName: {{ .Values.backend.persistence.storageClass | quote }}
+  {{- end }}
+{{- end }}

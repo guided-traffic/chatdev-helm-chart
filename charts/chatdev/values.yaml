@@ -1,0 +1,135 @@
+# Default values for the chatdev chart.
+# See README for the full reference and examples.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Pull secrets for private registries (applied to both deployments).
+imagePullSecrets: []
+#  - name: regcred
+
+# -----------------------------------------------------------------------------
+# LLM / runtime configuration (non-secret) — injected into the backend as env.
+# -----------------------------------------------------------------------------
+config:
+  # OpenAI-compatible endpoint. Can point at OpenAI, Gemini, or an in-cluster
+  # service such as Ollama (e.g. http://ollama.ollama.svc:11434/v1).
+  baseUrl: "https://api.openai.com/v1"
+  # Extra plain (non-secret) env vars for the backend.
+  extraEnv: []
+  #  - name: SOME_FLAG
+  #    value: "1"
+
+# -----------------------------------------------------------------------------
+# Secrets — the LLM API key and optional tool keys.
+# Provide values here (chart creates the Secret) OR point at an existingSecret
+# that already contains keys API_KEY / SERPER_DEV_API_KEY / JINA_API_KEY.
+# -----------------------------------------------------------------------------
+secrets:
+  existingSecret: ""
+  apiKey: ""              # required unless existingSecret is set
+  serperDevApiKey: ""     # optional: web search (serper.dev)
+  jinaApiKey: ""          # optional: web reading (jina.ai)
+
+# -----------------------------------------------------------------------------
+# Backend (FastAPI / uvicorn). Stateful singleton: keep replicaCount at 1.
+# -----------------------------------------------------------------------------
+backend:
+  replicaCount: 1
+  image:
+    repository: guidedtraffic/chatdev-backend
+    # Defaults to the chart version (= the pushed image tag) when empty.
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 6400
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 2Gi
+  # Generated software artifacts (and other on-disk state) live under /app.
+  persistence:
+    enabled: true
+    existingClaim: ""
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    mountPath: /app/WareHouse
+  podSecurityContext:
+    # PVC files must be writable by the image's appuser (uid/gid 1000).
+    fsGroup: 1000
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+  probes:
+    startup:
+      enabled: true
+      path: /docs
+      failureThreshold: 30
+      periodSeconds: 5
+    readiness:
+      enabled: true
+      path: /docs
+      periodSeconds: 10
+    liveness:
+      enabled: true
+      periodSeconds: 20
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# -----------------------------------------------------------------------------
+# Frontend (static Vue SPA on nginx). Stateless.
+# -----------------------------------------------------------------------------
+frontend:
+  replicaCount: 1
+  image:
+    repository: guidedtraffic/chatdev-frontend
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# -----------------------------------------------------------------------------
+# Ingress — single host. Frontend serves '/', backend serves '/api' and '/ws'.
+# The SPA calls the backend same-origin, so a single host is required.
+# -----------------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  host: chatdev.example.com
+  # Extra annotations merged onto the defaults (WebSocket timeouts + optional
+  # cert-manager issuer below).
+  annotations: {}
+  tls:
+    enabled: true
+    # cert-manager ClusterIssuer; when set, adds the cert-manager annotation.
+    clusterIssuer: ""
+    # Defaults to "<fullname>-tls" when empty.
+    secretName: ""
+  # Backend path prefixes routed to the backend Service (everything else → FE).
+  backendPaths:
+    - /api
+    - /ws

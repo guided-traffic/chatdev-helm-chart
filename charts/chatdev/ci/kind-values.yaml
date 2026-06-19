@@ -1,0 +1,19 @@
+# Values for local verification on a kind cluster with locally-built images
+# (chatdev-backend:local / chatdev-frontend:local loaded via `kind load`).
+# Not shipped in the packaged chart (see .helmignore).
+secrets:
+  apiKey: sk-test-dummy
+backend:
+  image:
+    repository: chatdev-backend
+    tag: local
+    pullPolicy: Never
+frontend:
+  image:
+    repository: chatdev-frontend
+    tag: local
+    pullPolicy: Never
+ingress:
+  host: chatdev.local
+  tls:
+    enabled: false

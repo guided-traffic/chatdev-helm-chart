@@ -1,0 +1,34 @@
+ChatDev has been deployed.
+
+Backend image:  {{ include "chatdev.backend.image" . }}
+Frontend image: {{ include "chatdev.frontend.image" . }}
+Upstream ChatDev version (appVersion): {{ .Chart.AppVersion }}
+
+{{- if .Values.ingress.enabled }}
+
+Access the UI at:
+  http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.host }}/
+
+The same host serves the API ({{ .Values.ingress.backendPaths | join ", " }}) and the SPA (/).
+  {{- if and .Values.ingress.tls.enabled (not .Values.ingress.tls.clusterIssuer) }}
+
+NOTE: ingress.tls.enabled is true but no cert-manager clusterIssuer is set.
+      Provide the TLS secret "{{ .Values.ingress.tls.secretName | default (printf "%s-tls" (include "chatdev.fullname" .)) }}" yourself,
+      or set ingress.tls.clusterIssuer to have cert-manager issue it.
+  {{- end }}
+{{- else }}
+
+Ingress is disabled. Reach the UI via port-forward:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "chatdev.frontend.fullname" . }} 8080:{{ .Values.frontend.service.port }}
+  # then open http://localhost:8080
+  # NOTE: without a single shared origin the SPA cannot reach the backend
+  #       (it calls /api and /ws same-origin). Enable ingress for real use.
+{{- end }}
+
+{{- if .Values.secrets.existingSecret }}
+
+Using existing secret: {{ .Values.secrets.existingSecret }}
+  (must contain key API_KEY; optionally SERPER_DEV_API_KEY, JINA_API_KEY)
+{{- end }}
+
+LLM endpoint (BASE_URL): {{ .Values.config.baseUrl }}

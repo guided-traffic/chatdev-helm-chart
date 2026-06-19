@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chatdev.backend.fullname" . }}
+  labels:
+    {{- include "chatdev.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  # Stateful singleton backed by a ReadWriteOnce PVC — never scale past 1, and
+  # use Recreate so the old pod releases the volume before the new one mounts it.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "chatdev.backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "chatdev.backend.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.backend.podSecurityContext | nindent 8 }}
+      containers:
+        - name: backend
+          image: {{ include "chatdev.backend.image" . | quote }}
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.backend.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.service.port }}
+          env:
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "chatdev.fullname" . }}-config
+                  key: BASE_URL
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "chatdev.secretName" . }}
+                  key: API_KEY
+            - name: SERPER_DEV_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "chatdev.secretName" . }}
+                  key: SERPER_DEV_API_KEY
+                  optional: true
+            - name: JINA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "chatdev.secretName" . }}
+                  key: JINA_API_KEY
+                  optional: true
+            {{- with .Values.config.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if .Values.backend.probes.startup.enabled }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.backend.probes.startup.path }}
+              port: http
+            failureThreshold: {{ .Values.backend.probes.startup.failureThreshold }}
+            periodSeconds: {{ .Values.backend.probes.startup.periodSeconds }}
+          {{- end }}
+          {{- if .Values.backend.probes.readiness.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.backend.probes.readiness.path }}
+              port: http
+            periodSeconds: {{ .Values.backend.probes.readiness.periodSeconds }}
+          {{- end }}
+          {{- if .Values.backend.probes.liveness.enabled }}
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: {{ .Values.backend.probes.liveness.periodSeconds }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          volumeMounts:
+            - name: warehouse
+              mountPath: {{ .Values.backend.persistence.mountPath }}
+      volumes:
+        - name: warehouse
+        {{- if .Values.backend.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.backend.persistence.existingClaim | default (printf "%s-warehouse" (include "chatdev.backend.fullname" .)) }}
+        {{- else }}
+          emptyDir: {}
+        {{- end }}
+      {{- with .Values.backend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

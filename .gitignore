@@ -1,0 +1,3 @@
+# Local upstream checkout + build scratch (never committed; CI clones fresh).
+.cache/
+*.tgz

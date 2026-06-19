@@ -1,0 +1,47 @@
+name: Lint chart
+
+# Fast validation on PRs and pushes that touch the chart: helm lint plus a
+# template render with a representative set of values (catches missing
+# required values, bad indentation, broken helpers).
+
+on:
+  pull_request:
+    paths:
+      - "charts/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "charts/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: helm lint
+        run: helm lint charts/chatdev --set secrets.apiKey=sk-ci
+
+      - name: helm template (with cert-manager issuer)
+        run: |
+          helm template ci charts/chatdev \
+            --set secrets.apiKey=sk-ci \
+            --set ingress.tls.clusterIssuer=letsencrypt-prod \
+            > /dev/null
+
+      - name: helm template (existingSecret, ingress disabled)
+        run: |
+          helm template ci charts/chatdev \
+            --set secrets.existingSecret=my-secret \
+            --set ingress.enabled=false \
+            --set backend.persistence.enabled=false \
+            > /dev/null

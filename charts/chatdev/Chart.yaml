@@ -1,0 +1,22 @@
+apiVersion: v2
+name: chatdev
+description: |
+  ChatDev (OpenBMB/ChatDev "DevAll") — a multi-agent, LLM-driven software
+  development team. Deploys the FastAPI backend and the Vue SPA frontend behind
+  a single-host ingress.
+type: application
+# Chart + image release version (set per release; matches the pushed image tag).
+version: 0.1.0
+# Upstream ChatDev version these images are built from (informational).
+appVersion: "2.2.0"
+keywords:
+  - chatdev
+  - llm
+  - agents
+  - ai
+home: https://github.com/guided-traffic/chatdev-helm-chart
+sources:
+  - https://github.com/OpenBMB/ChatDev
+  - https://github.com/guided-traffic/chatdev-helm-chart
+maintainers:
+  - name: guided-traffic
