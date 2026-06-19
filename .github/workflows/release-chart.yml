@@ -42,5 +42,8 @@ jobs:
         uses: helm/chart-releaser-action@v1.6.0
         with:
           charts_dir: charts
+          # Idempotent re-runs: don't fail if a release for this version exists,
+          # just (re)build and push the index.
+          skip_existing: true
         env:
           CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
