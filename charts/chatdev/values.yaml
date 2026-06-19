@@ -118,11 +118,17 @@ frontend:
 # -----------------------------------------------------------------------------
 ingress:
   enabled: true
+  # Ingress controller class, e.g. nginx, traefik, or HAProxy (hpi-internal /
+  # hpi-external). Set to match your cluster's controller.
   className: nginx
   host: chatdev.example.com
-  # Extra annotations merged onto the defaults (WebSocket timeouts + optional
-  # cert-manager issuer below).
-  annotations: {}
+  # Controller-specific annotations. The defaults keep long-lived WebSocket
+  # (/ws) connections open on ingress-nginx. For other controllers, replace
+  # them (e.g. HAProxy: haproxy-ingress.github.io/timeout-*). cert-manager's
+  # annotation is added automatically from ingress.tls.clusterIssuer below.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
   tls:
     enabled: true
     # cert-manager ClusterIssuer; when set, adds the cert-manager annotation.

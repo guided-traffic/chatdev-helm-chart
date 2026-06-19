@@ -48,9 +48,13 @@ PVC and a `Recreate` rollout.
 
 - Kubernetes 1.23+ and Helm 3.8+
 - An ingress controller. Defaults target **ingress-nginx**
-  (`ingress.className: nginx`); the chart sets WebSocket-friendly proxy
-  timeouts via nginx annotations.
-- A default StorageClass (or set `backend.persistence.storageClass`).
+  (`ingress.className: nginx`) with WebSocket-friendly proxy timeouts in
+  `ingress.annotations`. For other controllers, set `ingress.className` and
+  replace `ingress.annotations` (see [Other ingress controllers](#other-ingress-controllers)).
+- A StorageClass for the backend PVC. If the cluster has **no default
+  StorageClass**, set `backend.persistence.storageClass` explicitly (e.g.
+  `--set backend.persistence.storageClass=nvme-r2-ext4`), otherwise the PVC
+  stays Pending.
 - For automatic TLS: [cert-manager](https://cert-manager.io) with a
   ClusterIssuer. Set `ingress.tls.clusterIssuer`. Otherwise provide the TLS
   secret yourself, or disable TLS for local testing.
@@ -150,13 +154,36 @@ backend:
 | `frontend.resources` | requests 10m/32Mi, limit 128Mi | |
 | `frontend.securityContext` | non-root uid 101, no privesc, drop ALL caps | |
 | `ingress.enabled` | `true` | |
-| `ingress.className` | `nginx` | Ingress class. |
+| `ingress.className` | `nginx` | Ingress class (e.g. `nginx`, `traefik`, `hpi-internal`). |
 | `ingress.host` | `chatdev.example.com` | The single host serving SPA + API. |
-| `ingress.annotations` | `{}` | Merged onto the defaults. |
+| `ingress.annotations` | nginx WS proxy timeouts | Controller-specific annotations; replace for non-nginx controllers. |
 | `ingress.tls.enabled` | `true` | Add a TLS block to the ingress. |
 | `ingress.tls.clusterIssuer` | `""` | cert-manager ClusterIssuer (adds the annotation). |
 | `ingress.tls.secretName` | `""` | Defaults to `<release>-tls`. |
 | `ingress.backendPaths` | `[/api, /ws]` | Path prefixes routed to the backend. |
+
+## Other ingress controllers
+
+The defaults target ingress-nginx. For a different controller, set
+`ingress.className` and replace `ingress.annotations` with the equivalents.
+Path routing (`/`, `/api`, `/ws`) and WebSocket support are otherwise the same.
+
+HAProxy ingress example:
+
+```yaml
+ingress:
+  className: hpi-internal      # or hpi-external
+  host: chatdev.example.com
+  annotations:
+    haproxy-ingress.github.io/timeout-client: 1h
+    haproxy-ingress.github.io/timeout-server: 1h
+  tls:
+    clusterIssuer: letsencrypt-prod
+```
+
+To emit an ingress with no annotations at all, set `ingress.annotations: {}`
+(the cert-manager annotation is still added when `ingress.tls.clusterIssuer`
+is set).
 
 ## Local testing (kind)
 

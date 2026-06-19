@@ -5,16 +5,15 @@ metadata:
   name: {{ include "chatdev.fullname" . }}
   labels:
     {{- include "chatdev.labels" . | nindent 4 }}
+  {{- if or .Values.ingress.annotations (and .Values.ingress.tls.enabled .Values.ingress.tls.clusterIssuer) }}
   annotations:
-    # Keep long-lived WebSocket connections (/ws) open.
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     {{- if and .Values.ingress.tls.enabled .Values.ingress.tls.clusterIssuer }}
     cert-manager.io/cluster-issuer: {{ .Values.ingress.tls.clusterIssuer | quote }}
     {{- end }}
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+  {{- end }}
 spec:
   {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className }}

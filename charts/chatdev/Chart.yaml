@@ -6,7 +6,7 @@ description: |
   a single-host ingress.
 type: application
 # Chart + image release version (set per release; matches the pushed image tag).
-version: 0.1.0
+version: 0.1.1
 # Upstream ChatDev version these images are built from (informational).
 appVersion: "2.2.0"
 keywords:
